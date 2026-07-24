@@ -109,7 +109,15 @@
 <body>
 <div class="wrap">
   <h1>사건 진행 확인 대시보드</h1>
-  <div class="sub">사건번호를 등록해두고, 조회할 때 클릭 한 번으로 대법원 나의사건검색으로 이동 + 사건번호/당사자명 자동 복사. 자동입력 방지문자(캡차)만 직접 입력하면 됩니다.</div>
+  <div class="sub">사건을 등록해두고, "조회하기" 클릭 한 번으로 나의사건검색 사이트로 이동 + 법원/연도/기호/일련번호/당사자명이 자동으로 채워집니다. 자동입력 방지문자(캡차)만 직접 입력하면 됩니다.</div>
+
+  <div class="card" id="setupCard">
+    <strong style="font-size:13px;">자동입력 설정 (최초 1회만)</strong>
+    <div class="sub" style="margin:6px 0 10px;">
+      1) 브라우저에 <b>Tampermonkey</b> 확장 설치 → 2) 아래 버튼으로 자동입력 스크립트 설치 → 3) 사건을 등록하고 "조회하기"를 누르면 자동으로 채워집니다. 스크립트를 설치하지 않아도 복사 도우미 창으로 대체됩니다.
+    </div>
+    <a class="btnGhost" style="text-decoration:none;display:inline-block;" id="installScriptLink" href="#" target="_blank" rel="noopener">자동입력 스크립트 설치</a>
+  </div>
 
   <div class="card">
     <form class="addForm" id="addForm">
@@ -129,7 +137,7 @@
       </div>
       <div class="field">
         <label for="caseNumber">사건번호</label>
-        <input type="text" id="caseNumber" placeholder="예: 2025가단12345" required>
+        <input type="text" id="caseNumber" placeholder="예: 2025가단12345 (연도+기호+일련번호)" required>
       </div>
       <div class="field">
         <label for="partyName">당사자명</label>
@@ -168,8 +176,29 @@
 
 <script>
 const STORAGE_KEY = 'courtcheck.cases';
-const COURT_SEARCH_URL = 'https://www.scourt.go.kr/portal/information/events/search/search.jsp';
+const COURT_SEARCH_URL = 'https://ssgo.scourt.go.kr/ssgo/';
+const AUTOFILL_SCRIPT_URL = 'https://raw.githubusercontent.com/digitaltutor26/courtcheck/main/courtcheck-autofill.user.js';
 const STALE_DAYS = 7;
+
+document.getElementById('installScriptLink').href = AUTOFILL_SCRIPT_URL;
+
+function parseCaseNumber(raw) {
+  const m = String(raw || '').trim().match(/^(\d{4})\s*([가-힣]+)\s*(\d+)$/);
+  if (!m) return null;
+  return { year: m[1], divisionCode: m[2], serial: m[3] };
+}
+function buildAutofillUrl(item) {
+  const parsed = parseCaseNumber(item.caseNumber);
+  if (!parsed) return null;
+  const payload = {
+    court: item.court,
+    year: parsed.year,
+    divisionCode: parsed.divisionCode,
+    serial: parsed.serial,
+    partyName: item.partyName,
+  };
+  return `${COURT_SEARCH_URL}#courtcheck=${encodeURIComponent(JSON.stringify(payload))}`;
+}
 
 function loadCases() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -323,8 +352,15 @@ document.getElementById('tbody').addEventListener('click', async (e) => {
     item.lastChecked = new Date().toISOString();
     saveCases(cases);
     render();
-    window.open(COURT_SEARCH_URL, '_blank');
-    openAssistPopup(item);
+    const autofillUrl = buildAutofillUrl(item);
+    if (autofillUrl) {
+      window.open(autofillUrl, '_blank');
+      showToast('법원 사이트로 이동했습니다. 자동입력 스크립트가 설치되어 있으면 자동으로 채워집니다.');
+    } else {
+      window.open(COURT_SEARCH_URL, '_blank');
+      openAssistPopup(item);
+      showToast('사건번호 형식을 인식하지 못해 복사 도우미를 띄웠습니다.');
+    }
   } else if (action === 'delete') {
     if (!confirm(`"${item.caseNumber}" 사건을 삭제할까요?`)) return;
     cases = cases.filter(c => c.id !== id);
