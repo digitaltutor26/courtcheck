@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사건 진행 확인 대시보드</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1a1d21;
+    --muted: #6b7280;
+    --border: #e2e5e9;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --danger: #dc2626;
+    --stale: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a;
+      --card: #1f2226;
+      --text: #e8e9ea;
+      --muted: #9aa0a6;
+      --border: #2c3036;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --danger: #f87171;
+      --stale: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  form.addForm { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.4fr auto; gap: 8px; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  input[type=text] {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    width: 100%;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .btnPrimary { background: var(--accent); color: white; }
+  .btnPrimary:hover { background: var(--accent-hover); }
+  .btnGhost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btnGhost:hover { color: var(--text); }
+  .btnDanger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .toolbar .actions { display: flex; gap: 8px; }
+  .toolbar button { font-size: 12px; padding: 6px 10px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 13px; }
+  .lastChecked { font-size: 12px; color: var(--muted); }
+  .lastChecked.stale { color: var(--stale); font-weight: 600; }
+  .memo { color: var(--muted); font-size: 12px; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>사건 진행 확인 대시보드</h1>
+  <div class="sub">사건번호를 등록해두고, 조회할 때 클릭 한 번으로 대법원 나의사건검색으로 이동 + 사건번호/당사자명 자동 복사. 자동입력 방지문자(캡차)만 직접 입력하면 됩니다.</div>
+
+  <div class="card">
+    <form class="addForm" id="addForm">
+      <div class="field">
+        <label for="court">법원</label>
+        <input type="text" id="court" list="courtList" placeholder="예: 서울중앙지방법원" required>
+        <datalist id="courtList">
+          <option value="서울중앙지방법원"><option value="서울동부지방법원"><option value="서울남부지방법원">
+          <option value="서울북부지방법원"><option value="서울서부지방법원"><option value="서울가정법원">
+          <option value="서울행정법원"><option value="서울회생법원"><option value="의정부지방법원">
+          <option value="인천지방법원"><option value="수원지방법원"><option value="수원가정법원">
+          <option value="춘천지방법원"><option value="대전지방법원"><option value="청주지방법원">
+          <option value="대구지방법원"><option value="부산지방법원"><option value="울산지방법원">
+          <option value="창원지방법원"><option value="광주지방법원"><option value="전주지방법원">
+          <option value="제주지방법원">
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="caseNumber">사건번호</label>
+        <input type="text" id="caseNumber" placeholder="예: 2025가단12345" required>
+      </div>
+      <div class="field">
+        <label for="partyName">당사자명</label>
+        <input type="text" id="partyName" placeholder="예: 홍길동" required>
+      </div>
+      <div class="field">
+        <label for="memo">메모</label>
+        <input type="text" id="memo" placeholder="선택사항">
+      </div>
+      <button type="submit" class="btnPrimary">추가</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <strong style="font-size:13px;">등록된 사건 (<span id="count">0</span>)</strong>
+      <div class="actions">
+        <button class="btnGhost" id="exportBtn">내보내기</button>
+        <button class="btnGhost" id="importBtn">가져오기</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;">
+      </div>
+    </div>
+    <table id="table" style="display:none;">
+      <thead>
+        <tr>
+          <th>법원</th><th>사건번호</th><th>당사자명</th><th>메모</th><th>마지막 확인</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="emptyState">등록된 사건이 없습니다. 위에서 추가해보세요.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'courtcheck.cases';
+const COURT_SEARCH_URL = 'https://www.scourt.go.kr/portal/information/events/search/search.jsp';
+const STALE_DAYS = 7;
+
+function loadCases() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveCases(cases) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+}
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function openAssistPopup(item) {
+  const w = window.open('', 'courtcheck_assist_' + item.id, 'width=340,height=380,resizable=yes');
+  if (!w) {
+    showToast('팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도해주세요.');
+    return;
+  }
+  const fields = [
+    { label: '법원', value: item.court },
+    { label: '사건번호', value: item.caseNumber },
+    { label: '당사자명', value: item.partyName },
+  ];
+  const rows = fields.map((f, i) => `
+    <div class="row">
+      <div class="label">${escapeHtml(f.label)}</div>
+      <div class="value" id="val${i}">${escapeHtml(f.value)}</div>
+      <button data-idx="${i}">복사</button>
+    </div>
+  `).join('');
+
+  w.document.open();
+  w.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+    <title>조회 보조 - ${escapeHtml(item.caseNumber)}</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 16px;
+        background: Canvas; color: CanvasText; }
+      h2 { font-size: 15px; margin: 0 0 4px; }
+      .sub { font-size: 12px; opacity: .6; margin-bottom: 14px; }
+      .row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,.25); }
+      .label { width: 64px; font-size: 12px; opacity: .6; flex-shrink: 0; }
+      .value { flex: 1; font-size: 14px; word-break: break-all; }
+      button { cursor: pointer; border: none; border-radius: 6px; padding: 7px 12px; font-size: 12px;
+        background: #2563eb; color: white; flex-shrink: 0; }
+      button.copied { background: #16a34a; }
+      .hint { font-size: 12px; opacity: .6; margin-top: 14px; line-height: 1.5; }
+    </style></head>
+    <body>
+      <h2>클릭 → 복사 → 법원 사이트 탭에서 붙여넣기</h2>
+      <div class="sub">캡차(자동입력 방지문자)만 직접 입력하면 됩니다.</div>
+      ${rows}
+      <div class="hint">이 창은 켜둔 채로 법원 사이트 탭과 번갈아가며 사용하세요.</div>
+    </body></html>`);
+  w.document.close();
+
+  w.document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-idx]');
+    if (!btn) return;
+    const f = fields[Number(btn.dataset.idx)];
+    try {
+      await w.navigator.clipboard.writeText(f.value);
+    } catch {
+      try { await navigator.clipboard.writeText(f.value); } catch {}
+    }
+    btn.textContent = '복사됨';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '복사'; btn.classList.remove('copied'); }, 1200);
+  });
+}
+
+function formatDate(iso) {
+  if (!iso) return '조회 기록 없음';
+  const d = new Date(iso);
+  return d.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function isStale(iso) {
+  if (!iso) return true;
+  return (Date.now() - new Date(iso).getTime()) > STALE_DAYS * 86400000;
+}
+
+let cases = loadCases();
+
+function render() {
+  cases.sort((a, b) => (a.lastChecked || '').localeCompare(b.lastChecked || ''));
+  const tbody = document.getElementById('tbody');
+  const table = document.getElementById('table');
+  const emptyState = document.getElementById('emptyState');
+  document.getElementById('count').textContent = cases.length;
+
+  if (cases.length === 0) {
+    table.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+  table.style.display = 'table';
+  emptyState.style.display = 'none';
+
+  tbody.innerHTML = '';
+  for (const c of cases) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(c.court)}</td>
+      <td>${escapeHtml(c.caseNumber)}</td>
+      <td>${escapeHtml(c.partyName)}</td>
+      <td class="memo">${escapeHtml(c.memo || '')}</td>
+      <td><span class="lastChecked ${isStale(c.lastChecked) ? 'stale' : ''}">${formatDate(c.lastChecked)}</span></td>
+      <td class="actions">
+        <button class="btnPrimary" data-action="check" data-id="${c.id}">조회하기</button>
+        <button class="btnGhost" data-action="edit" data-id="${c.id}">수정</button>
+        <button class="btnDanger" data-action="delete" data-id="${c.id}">삭제</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+document.getElementById('addForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const court = document.getElementById('court').value.trim();
+  const caseNumber = document.getElementById('caseNumber').value.trim();
+  const partyName = document.getElementById('partyName').value.trim();
+  const memo = document.getElementById('memo').value.trim();
+  if (!court || !caseNumber || !partyName) return;
+
+  cases.push({ id: uid(), court, caseNumber, partyName, memo, lastChecked: null });
+  saveCases(cases);
+  e.target.reset();
+  render();
+});
+
+document.getElementById('tbody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  const item = cases.find(c => c.id === id);
+  if (!item) return;
+
+  if (action === 'check') {
+    item.lastChecked = new Date().toISOString();
+    saveCases(cases);
+    render();
+    window.open(COURT_SEARCH_URL, '_blank');
+    openAssistPopup(item);
+  } else if (action === 'delete') {
+    if (!confirm(`"${item.caseNumber}" 사건을 삭제할까요?`)) return;
+    cases = cases.filter(c => c.id !== id);
+    saveCases(cases);
+    render();
+  } else if (action === 'edit') {
+    const court = prompt('법원', item.court);
+    if (court === null) return;
+    const caseNumber = prompt('사건번호', item.caseNumber);
+    if (caseNumber === null) return;
+    const partyName = prompt('당사자명', item.partyName);
+    if (partyName === null) return;
+    const memo = prompt('메모', item.memo || '');
+    if (memo === null) return;
+    item.court = court.trim();
+    item.caseNumber = caseNumber.trim();
+    item.partyName = partyName.trim();
+    item.memo = memo.trim();
+    saveCases(cases);
+    render();
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(cases, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `courtcheck-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error('invalid format');
+      const existingIds = new Set(cases.map(c => c.id));
+      for (const item of imported) {
+        if (!item.id || existingIds.has(item.id)) item.id = uid();
+        cases.push(item);
+      }
+      saveCases(cases);
+      render();
+      showToast('가져오기가 완료되었습니다.');
+    } catch {
+      showToast('가져오기 실패 — 파일 형식을 확인하세요.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+render();
+</script>
+</body>
+</html>
