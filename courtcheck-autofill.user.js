@@ -47,10 +47,19 @@
   }
 
   function setInputValue(input, value) {
+    const str = String(value ?? '');
     const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    nativeSetter.call(input, value ?? '');
+    input.focus();
+    nativeSetter.call(input, '');
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    for (const ch of str) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+      nativeSetter.call(input, input.value + ch);
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, data: ch, inputType: 'insertText' }));
+      input.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+    }
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.blur();
   }
 
   const filled = { court: false, year: false, div: false, serial: false, party: false };
