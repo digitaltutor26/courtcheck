@@ -53,27 +53,53 @@
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function tryFill() {
-    const courtEl = document.getElementById(IDS.court);
-    const yearEl = document.getElementById(IDS.year);
-    const divEl = document.getElementById(IDS.div);
-    const serialEl = document.getElementById(IDS.serial);
-    const partyEl = document.getElementById(IDS.party);
-    if (!courtEl || !yearEl || !divEl || !serialEl || !partyEl) return false;
+  const filled = { court: false, year: false, div: false, serial: false, party: false };
 
-    setSelectByText(courtEl, data.court);
-    setSelectByText(yearEl, data.year);
-    setSelectByText(divEl, data.divisionCode);
-    setInputValue(serialEl, data.serial);
-    setInputValue(partyEl, data.partyName);
-    return true;
+  function attemptFill() {
+    if (!filled.court) {
+      const el = document.getElementById(IDS.court);
+      if (el) filled.court = setSelectByText(el, data.court);
+    }
+    if (!filled.year) {
+      const el = document.getElementById(IDS.year);
+      if (el) filled.year = setSelectByText(el, data.year);
+    }
+    if (!filled.div) {
+      const el = document.getElementById(IDS.div);
+      if (el) filled.div = setSelectByText(el, data.divisionCode);
+    }
+    if (!filled.serial) {
+      const el = document.getElementById(IDS.serial);
+      if (el) {
+        setInputValue(el, data.serial);
+        filled.serial = true;
+      }
+    }
+    if (!filled.party) {
+      const el = document.getElementById(IDS.party);
+      if (el) {
+        setInputValue(el, data.partyName);
+        filled.party = true;
+      }
+    }
+    return Object.values(filled).every(Boolean);
   }
 
-  if (tryFill()) return;
+  function logStatus() {
+    console.log('[courtcheck 자동입력]', filled);
+  }
+
+  if (attemptFill()) {
+    logStatus();
+    return;
+  }
 
   const observer = new MutationObserver(() => {
-    if (tryFill()) observer.disconnect();
+    if (attemptFill()) observer.disconnect();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  setTimeout(() => observer.disconnect(), 15000);
+  setTimeout(() => {
+    observer.disconnect();
+    logStatus();
+  }, 15000);
 })();

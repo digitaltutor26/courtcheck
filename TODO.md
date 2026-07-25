@@ -2,8 +2,7 @@
 
 ## 확인 필요
 - [ ] `courtcheck-autofill.user.js`의 입력창 ID(법원/연도/기호/일련번호/당사자명)가 실제 나의사건검색 사이트에서 정확히 매칭되는지 브라우저에서 직접 테스트
-- [x] 법원 선택에 "지원" 2단계 드롭다운 추가 완료 (`COURT_BRANCHES`, 각 법원 공식 홈페이지 기준으로 확인) — 저장되는 값은 `"의정부지방법원 고양지원"`처럼 "법원명 + 공백 + 지원명" 형식
-- [ ] 위 형식이 실제 나의사건검색 사이트의 법원 select 옵션 텍스트와 정확히 일치하는지 확인 필요 (공백 유무, 표기 방식이 다를 수 있음 — 다를 경우 `courtcheck-autofill.user.js`의 `setSelectByText`가 못 찾음)
+- [x] 법원 선택에 "지원" 2단계 드롭다운 추가 완료. 실제 나의사건검색 법원 select(`mf_ssgoTopMainTab_contents_content1_body_sbx_cortCd`) 옵션 텍스트를 사용자가 직접 복사해줘서 `COURT_BRANCHES` 값을 그 옵션 텍스트와 정확히 일치시킴 (법원마다 표기가 달라서 의정부/수원/춘천/청주/창원/전주는 지원명 단독, 인천/대전/대구/부산/광주는 "법원명 지원명" 형식)
 - [x] `index.html`의 `COURT_SEARCH_URL`을 실제 검색 화면 URL(`https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www`)로 수정 완료 — 기존 `https://ssgo.scourt.go.kr/ssgo/`는 403(시스템 작업 안내) 페이지였음. `www.scourt.go.kr/portal/information/events/search/search.jsp`는 이 URL을 iframe으로 감싼 포털 페이지였음
 - [ ] 사건번호 형식이 `연도(4자리)+기호(한글)+일련번호(숫자)`가 아닌 사건(예: 형사/가사 등 표기가 다른 경우)이 있는지 확인하고 `parseCaseNumber` 정규식 보완
 - [ ] "조회하기" 클릭 시 실제로 새 탭이 열리고 자동입력까지 되는지 최종 확인 (팝업 차단 이슈는 `openInNewTab`으로 수정함)
