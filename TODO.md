@@ -1,20 +1,19 @@
 # 다음 할 일
 
 ## 확인 필요
-- [ ] `courtcheck-autofill.user.js`의 입력창 ID(법원/연도/기호/일련번호/당사자명)가 실제 나의사건검색 사이트에서 정확히 매칭되는지 브라우저에서 직접 테스트
-- [x] 법원 선택에 "지원" 2단계 드롭다운 추가 완료. 실제 나의사건검색 법원 select(`mf_ssgoTopMainTab_contents_content1_body_sbx_cortCd`) 옵션 텍스트를 사용자가 직접 복사해줘서 `COURT_BRANCHES` 값을 그 옵션 텍스트와 정확히 일치시킴 (법원마다 표기가 달라서 의정부/수원/춘천/청주/창원/전주는 지원명 단독, 인천/대전/대구/부산/광주는 "법원명 지원명" 형식)
-- [x] `index.html`의 `COURT_SEARCH_URL`을 실제 검색 화면 URL(`https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www`)로 수정 완료 — 기존 `https://ssgo.scourt.go.kr/ssgo/`는 403(시스템 작업 안내) 페이지였음. `www.scourt.go.kr/portal/information/events/search/search.jsp`는 이 URL을 iframe으로 감싼 포털 페이지였음
+- [x] 자동입력 최종 확인 완료 — 법원/연도/기호/일련번호/당사자명 전부 채워짐(캡차만 수동 입력). 텍스트 입력창(일련번호/당사자명)은 값만 넣으면 사이트 검증에서 지워져서, 한 글자씩 타이핑하듯 키보드 이벤트를 시뮬레이션하도록 고쳐서 해결
+- [x] 법원 선택에 "지원" 2단계 드롭다운 추가 완료. 실제 나의사건검색 법원 select(`mf_ssgoTopMainTab_contents_content1_body_sbx_cortCd`) 옵션 텍스트를 사용자가 직접 복사해줘서 `COURT_BRANCHES` 값을 그 옵션 텍스트와 정확히 일치시킴
+- [x] `COURT_SEARCH_URL`을 실제 검색 화면 URL(`https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www`)로 수정 완료
 - [ ] 사건번호 형식이 `연도(4자리)+기호(한글)+일련번호(숫자)`가 아닌 사건(예: 형사/가사 등 표기가 다른 경우)이 있는지 확인하고 `parseCaseNumber` 정규식 보완
-- [ ] "조회하기" 클릭 시 실제로 새 탭이 열리고 자동입력까지 되는지 최종 확인 (팝업 차단 이슈는 `openInNewTab`으로 수정함)
 
 ## 개선 아이디어
-- [ ] Tampermonkey 미설치 사용자를 위한 설치 안내를 더 쉽게(스크린샷 등) 보강
 - [ ] 사건 목록이 많아질 경우를 대비한 검색/필터 기능
 - [ ] 모바일 화면 대응 (현재는 데스크톱 기준 레이아웃)
-- [ ] GitHub Pages로 `index.html` 배포해서 어디서든 접속 가능하게 할지 검토
 - [ ] 감정 진행 기록(타임라인)에 정렬/필터(예정만 보기 등) 기능 추가 검토
+- [ ] 다른 컴퓨터에서 "가져오기"를 매번 수동으로 해야 하는 부분 — 클라우드 동기화(예: 로그인 없는 공유 코드 방식)가 필요할지 검토
 
 ## 배포
-- [x] `courtcheck-autofill.user.js` 커밋/푸시 완료
-- [x] 저장소를 public으로 전환하여 "자동입력 스크립트 설치" 버튼의 raw GitHub URL이 정상 동작하는지 확인 (200 OK)
-- [ ] Tampermonkey에서 실제로 "설치" 화면이 뜨는지, 설치 후 나의사건검색 사이트에서 자동입력이 되는지 실사용 테스트
+- [x] `courtcheck-autofill.user.js` 커밋/푸시 완료 (선택적 대안으로 유지)
+- [x] 저장소를 public으로 전환
+- [x] Tampermonkey 방식 → 북마크릿 방식으로 기본 자동입력 전환 (확장 프로그램/프로필 설정 불필요, 브라우저 무관하게 동작)
+- [x] GitHub Pages 배포 완료 — https://digitaltutor26.github.io/courtcheck/ 에서 바로 접속 가능

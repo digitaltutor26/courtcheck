@@ -136,17 +136,14 @@
 <body>
 <div class="wrap">
   <h1>사건 진행 확인 대시보드</h1>
-  <div class="sub">사건을 등록해두고, "조회하기" 클릭 한 번으로 나의사건검색 사이트로 이동 + 법원/연도/기호/일련번호/당사자명이 자동으로 채워집니다. 자동입력 방지문자(캡차)만 직접 입력하면 됩니다. 각 사건의 "기록"에서 감정 진행사항(완료/예정)을 함께 관리할 수 있습니다.</div>
+  <div class="sub">사건을 등록해두고, "조회하기" 클릭 한 번으로 나의사건검색 사이트로 이동합니다. 아래 북마크릿을 눌러주면 법원/연도/기호/일련번호/당사자명이 자동으로 채워집니다(자동입력 방지문자만 직접 입력). 각 사건의 "기록"에서 감정 진행사항(완료/예정)을 함께 관리할 수 있습니다.</div>
 
   <div class="card" id="setupCard">
-    <strong style="font-size:13px;">자동입력 설정 (최초 1회만)</strong>
+    <strong style="font-size:13px;">자동입력 설정 (최초 1회만, 확장 프로그램 설치 불필요)</strong>
     <div class="sub" style="margin:6px 0 10px;">
-      1) ① 버튼 → 열리는 페이지에서 "Chrome에 추가"(사용 중인 브라우저용 버튼)를 눌러 <b>Tampermonkey</b> 확장 설치까지 완료 → 2) 설치가 끝난 뒤에 ② 버튼을 누르면 Tampermonkey 자체의 "스크립트 설치" 확인 화면이 뜹니다(Tampermonkey를 먼저 설치하지 않고 ②를 누르면 Chrome의 기본 안내 화면만 뜨니 순서를 지켜주세요) → 3) 사건을 등록하고 "조회하기"를 누르면 자동으로 채워집니다. 스크립트를 설치하지 않아도 복사 도우미 창으로 대체됩니다.
+      1) 북마크바가 안 보이면 먼저 표시하세요 (Mac Chrome/Safari 기준 <code>Cmd+Shift+B</code>) → 2) 아래 "📋 courtcheck 자동입력" 버튼을 북마크바로 <b>드래그</b>해서 북마크로 등록 → 3) 사건을 등록하고 "조회하기"로 법원 사이트를 연 다음, 페이지가 다 뜨면 북마크바의 그 버튼을 <b>클릭</b>하면 자동으로 채워집니다. Chrome/Safari/Edge 등 어떤 브라우저에서도 동일하게 동작하고, 다른 컴퓨터에서도 이 버튼만 다시 드래그하면 됩니다.
     </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btnGhost" style="text-decoration:none;display:inline-block;" href="https://www.tampermonkey.net/" target="_blank" rel="noopener">① Tampermonkey 확장 설치</a>
-      <a class="btnPrimary" style="text-decoration:none;display:inline-block;" id="installScriptLink" href="#" target="_blank" rel="noopener">② 자동입력 스크립트 설치</a>
-    </div>
+    <a class="btnPrimary" style="text-decoration:none;display:inline-block; cursor:grab;" id="bookmarkletLink" href="#" onclick="return false;">📋 courtcheck 자동입력 (북마크바로 드래그하세요)</a>
   </div>
 
   <div class="card">
@@ -210,10 +207,67 @@
 <script>
 const STORAGE_KEY = 'courtcheck.cases';
 const COURT_SEARCH_URL = 'https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www';
-const AUTOFILL_SCRIPT_URL = 'https://raw.githubusercontent.com/digitaltutor26/courtcheck/main/courtcheck-autofill.user.js';
 const STALE_DAYS = 7;
 
-document.getElementById('installScriptLink').href = AUTOFILL_SCRIPT_URL;
+const BOOKMARKLET_SRC = `(function(){
+  var IDS = {
+    court: 'mf_ssgoTopMainTab_contents_content1_body_sbx_cortCd',
+    year: 'mf_ssgoTopMainTab_contents_content1_body_sbx_csYr',
+    div: 'mf_ssgoTopMainTab_contents_content1_body_sbx_csDvsCd',
+    serial: 'mf_ssgoTopMainTab_contents_content1_body_ibx_csSerial',
+    party: 'mf_ssgoTopMainTab_contents_content1_body_ibx_btprNm'
+  };
+  var hash = location.hash.replace(/^#/, '');
+  if (!hash) { alert('courtcheck: 이 페이지에는 채울 데이터가 없습니다. courtcheck 대시보드의 조회하기로 열어주세요.'); return; }
+  var params = new URLSearchParams(hash);
+  var raw = params.get('courtcheck');
+  if (!raw) { alert('courtcheck: 데이터를 찾을 수 없습니다.'); return; }
+  var data;
+  try { data = JSON.parse(raw); } catch (e) { alert('courtcheck: 데이터 형식 오류'); return; }
+
+  function setSelectByText(select, text) {
+    if (!text) return false;
+    var target = String(text).trim();
+    var opt = Array.prototype.find.call(select.options, function (o) { return o.textContent.trim() === target; });
+    if (!opt) return false;
+    select.value = opt.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+  function setInputValue(input, value) {
+    var str = String(value == null ? '' : value);
+    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    input.focus();
+    nativeSetter.call(input, '');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    for (var i = 0; i < str.length; i++) {
+      var ch = str[i];
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+      nativeSetter.call(input, input.value + ch);
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, data: ch, inputType: 'insertText' }));
+      input.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+    }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.blur();
+  }
+
+  var filled = { court: false, year: false, div: false, serial: false, party: false };
+  function attemptFill() {
+    if (!filled.court) { var el = document.getElementById(IDS.court); if (el) filled.court = setSelectByText(el, data.court); }
+    if (!filled.year) { var el2 = document.getElementById(IDS.year); if (el2) filled.year = setSelectByText(el2, data.year); }
+    if (!filled.div) { var el3 = document.getElementById(IDS.div); if (el3) filled.div = setSelectByText(el3, data.divisionCode); }
+    if (!filled.serial) { var el4 = document.getElementById(IDS.serial); if (el4) { setInputValue(el4, data.serial); filled.serial = true; } }
+    if (!filled.party) { var el5 = document.getElementById(IDS.party); if (el5) { setInputValue(el5, data.partyName); filled.party = true; } }
+    return filled.court && filled.year && filled.div && filled.serial && filled.party;
+  }
+  if (attemptFill()) return;
+  var observer = new MutationObserver(function () { if (attemptFill()) observer.disconnect(); });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  setTimeout(function () { observer.disconnect(); }, 8000);
+})();`;
+
+document.getElementById('bookmarkletLink').href = 'javascript:' + encodeURIComponent(BOOKMARKLET_SRC);
 
 function parseCaseNumber(raw) {
   const m = String(raw || '').trim().match(/^(\d{4})\s*([가-힣]+)\s*(\d+)$/);
@@ -502,7 +556,7 @@ document.getElementById('tbody').addEventListener('click', async (e) => {
       const autofillUrl = buildAutofillUrl(item);
       if (autofillUrl) {
         openInNewTab(autofillUrl);
-        showToast('법원 사이트로 이동했습니다. 자동입력 스크립트가 설치되어 있으면 자동으로 채워집니다.');
+        showToast('법원 사이트로 이동했습니다. 페이지가 다 뜨면 북마크바의 자동입력 버튼을 눌러주세요.');
       } else {
         openInNewTab(COURT_SEARCH_URL);
         if (openAssistPopup(item)) {
