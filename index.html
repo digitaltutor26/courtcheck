@@ -207,6 +207,8 @@
 <script>
 const STORAGE_KEY = 'courtcheck.cases';
 const COURT_SEARCH_URL = 'https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www';
+// 감정 아카이브 서버 주소 — 실제 서버 PC의 LAN 주소/호스트명으로 직접 바꿔서 쓰세요.
+const ARCHIVE_SEARCH_URL = 'http://<서버-IP-또는-호스트명>:8811/#/search';
 const STALE_DAYS = 7;
 
 const BOOKMARKLET_SRC = `(function(){
@@ -455,6 +457,7 @@ function render() {
       <td class="actions">
         <button class="btnPrimary" data-action="check" data-id="${c.id}">조회하기</button>
         <button class="btnGhost" data-action="log" data-id="${c.id}">기록${todoCount ? `<span class="logCountBadge">${todoCount}</span>` : ''}</button>
+        <button class="btnGhost" data-action="archive" data-id="${c.id}">과거자료</button>
         <button class="btnGhost" data-action="edit" data-id="${c.id}">수정</button>
         <button class="btnDanger" data-action="delete" data-id="${c.id}">삭제</button>
       </td>
@@ -567,6 +570,8 @@ document.getElementById('tbody').addEventListener('click', async (e) => {
       console.error(err);
       showToast('오류가 발생했습니다: ' + err.message);
     }
+  } else if (action === 'archive') {
+    openInNewTab(ARCHIVE_SEARCH_URL + '?q=' + encodeURIComponent(item.caseNumber));
   } else if (action === 'delete') {
     if (!confirm(`"${item.caseNumber}" 사건을 삭제할까요?`)) return;
     cases = cases.filter(c => c.id !== id);
