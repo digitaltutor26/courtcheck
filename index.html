@@ -131,12 +131,29 @@
     display: inline-block; background: var(--stale); color: white; font-size: 10px;
     font-weight: 700; border-radius: 999px; padding: 1px 6px; margin-left: 4px;
   }
+
+  .remItem { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+  .remItem:last-child { border-bottom: none; }
+  .remDue { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; min-width: 54px; text-align: center; }
+  .remDue.overdue { background: rgba(220,38,38,.16); color: var(--danger); }
+  .remDue.today { background: var(--stale); color: white; }
+  .remDue.soon { background: rgba(180,83,9,.16); color: var(--stale); }
+  .remBody { flex: 1; min-width: 0; }
+  .remCase { color: var(--muted); font-size: 12px; }
+  .remText { word-break: break-word; }
+  .remItem button { font-size: 12px; padding: 5px 10px; flex-shrink: 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>사건 진행 확인 대시보드</h1>
   <div class="sub">사건을 등록해두고, "조회하기" 클릭 한 번으로 나의사건검색 사이트로 이동합니다. 아래 북마크릿을 눌러주면 법원/연도/기호/일련번호/당사자명이 자동으로 채워집니다(자동입력 방지문자만 직접 입력). 각 사건의 "기록"에서 감정 진행사항(완료/예정)을 함께 관리할 수 있습니다.</div>
+
+  <div class="card" id="reminderCard" style="display:none;">
+    <strong style="font-size:13px;">⏰ 처리할 일정 (<span id="reminderCount">0</span>)</strong>
+    <div class="sub" style="margin:4px 0 8px;">각 사건 "기록"에 <b>예정</b>으로 남긴 항목 중 기한이 지났거나 7일 이내인 것입니다. 법원에 들어가지 않아도 여기서 확인하세요.</div>
+    <div id="reminderList"></div>
+  </div>
 
   <div class="card" id="setupCard">
     <strong style="font-size:13px;">자동입력 설정 (최초 1회만, 확장 프로그램 설치 불필요)</strong>
@@ -210,6 +227,8 @@ const COURT_SEARCH_URL = 'https://ssgo.scourt.go.kr/ssgo/index.on?cortId=www';
 // 감정 아카이브 서버 주소 — 실제 서버 PC의 LAN 주소/호스트명으로 직접 바꿔서 쓰세요.
 const ARCHIVE_SEARCH_URL = 'http://<서버-IP-또는-호스트명>:8811/#/search';
 const STALE_DAYS = 7;
+const REMIND_DAYS = 7;
+const BASE_TITLE = document.title;
 
 const BOOKMARKLET_SRC = `(function(){
   var IDS = {
@@ -380,8 +399,18 @@ function formatLogDate(d) {
   if (parts.length !== 3) return d || '';
   return `${parts[0].slice(2)}.${parts[1]}.${parts[2]}`;
 }
+// 로컬 날짜 기준 (toISOString은 UTC라 한국 시간 새벽에는 전날로 찍힘)
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function daysUntil(dateStr) {
+  const [y, m, d] = String(dateStr || '').split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(y, m - 1, d) - today) / 86400000);
 }
 function openInNewTab(url) {
   const a = document.createElement('a');
@@ -429,7 +458,43 @@ function renderLogPanel(c) {
   `;
 }
 
+function renderReminders() {
+  const items = [];
+  for (const c of cases) {
+    for (const l of (c.logs || [])) {
+      if (l.status !== 'todo') continue;
+      const n = daysUntil(l.date);
+      if (n === null || n > REMIND_DAYS) continue;
+      items.push({ c, l, n });
+    }
+  }
+  items.sort((a, b) => a.n - b.n);
+
+  const card = document.getElementById('reminderCard');
+  card.style.display = items.length ? 'block' : 'none';
+  document.getElementById('reminderCount').textContent = items.length;
+
+  const urgent = items.filter(i => i.n <= 0).length;
+  document.title = (urgent ? `(${urgent}) ` : '') + BASE_TITLE;
+
+  document.getElementById('reminderList').innerHTML = items.map(({ c, l, n }) => {
+    const cls = n < 0 ? 'overdue' : n === 0 ? 'today' : 'soon';
+    const label = n < 0 ? `${-n}일 지남` : n === 0 ? '오늘' : `D-${n}`;
+    return `
+      <div class="remItem">
+        <span class="remDue ${cls}">${label}</span>
+        <div class="remBody">
+          <div class="remCase">${escapeHtml(c.court)} ${escapeHtml(c.caseNumber)} · ${escapeHtml(c.partyName)} · ${formatLogDate(l.date)}</div>
+          <div class="remText">${escapeHtml(l.text)}</div>
+        </div>
+        <button class="btnPrimary" data-action="rem-done" data-id="${c.id}" data-log-id="${l.id}">완료</button>
+        <button class="btnGhost" data-action="rem-open" data-id="${c.id}">기록</button>
+      </div>`;
+  }).join('');
+}
+
 function render() {
+  renderReminders();
   cases.sort((a, b) => (a.lastChecked || '').localeCompare(b.lastChecked || ''));
   const tbody = document.getElementById('tbody');
   const table = document.getElementById('table');
@@ -611,6 +676,28 @@ document.getElementById('tbody').addEventListener('click', async (e) => {
     saveCases(cases);
     render();
   }
+});
+
+document.getElementById('reminderList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const item = cases.find(c => c.id === btn.dataset.id);
+  if (!item) return;
+  if (btn.dataset.action === 'rem-done') {
+    const log = (item.logs || []).find(l => l.id === btn.dataset.logId);
+    if (!log) return;
+    log.status = 'done';
+    saveCases(cases);
+    render();
+  } else if (btn.dataset.action === 'rem-open') {
+    expandedId = item.id;
+    render();
+    document.querySelector(`[data-log-panel="${item.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+// 탭을 켜둔 채 날짜가 바뀌거나 다른 탭에서 돌아왔을 때 D-day를 다시 계산
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { cases = loadCases(); render(); }
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
